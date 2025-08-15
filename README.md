@@ -1,6 +1,6 @@
 # backend-google-maps
 
-Backend ringan berbasis Bun + Hono untuk mengekstrak intent pencarian dari bahasa natural (via OpenAI) dan melakukan pencarian tempat di Google Maps (Places API), lalu mengembalikan hasil yang siap dipakai front-end.
+Lightweight backend built with Bun + Hono to extract search intent from natural language (via OpenAI) and perform place search on Google Maps (Places API), then return front-end ready results.
 
 ## Tech Stack
 - Bun
@@ -8,17 +8,17 @@ Backend ringan berbasis Bun + Hono untuk mengekstrak intent pencarian dari bahas
 - OpenAI (chat completion, JSON mode)
 - Google Maps Places API (Legacy Text Search + v1 fallback)
 
-## Prasyarat
-- Bun >= 1.0 (disarankan terbaru)
+## Prerequisites
+- Bun >= 1.0 (latest recommended)
 - OpenAI API Key
-- Google Maps API Key (aktifkan Places API)
+- Google Maps API Key (enable Places API)
 
-## Setup Cepat
-1) Duplikasi env dan isi kunci
+## Quick Setup
+1) Copy env and set keys
 ```sh
 cp .env.example .env
-# Edit .env lalu set:
-# PORT=3001               # opsional, default 3000 bila tidak di-set
+# Edit .env then set:
+# PORT=3001               # optional, default 3000 if not set
 # OPENAI_API_KEY=...
 # GOOGLE_MAPS_API_KEY=...
 ```
@@ -28,28 +28,28 @@ cp .env.example .env
 bun install
 ```
 
-3) Jalankan dev server (hot reload)
+3) Start dev server (hot reload)
 ```sh
 bun run dev
 ```
 
-4) Cek healthcheck
-- http://localhost:3000/health (atau sesuaikan dengan PORT di .env)
+4) Check health endpoint
+- http://localhost:3000/health (or match PORT in .env)
 
 ## Environment Variables
-- `PORT` — default `3000` (lihat `src/index.ts`), contoh `.env.example` menggunakan `3001`
-- `OPENAI_API_KEY` — API key OpenAI
-- `GOOGLE_MAPS_API_KEY` — API key Google Maps dengan Places API aktif
+- `PORT` — default `3000` (see `src/index.ts`), `.env.example` uses `3001`
+- `OPENAI_API_KEY` — OpenAI API key
+- `GOOGLE_MAPS_API_KEY` — Google Maps API key with Places API enabled
 
 ## Endpoints
 - `GET /health` → `{ message: "OK" }`
-- `GET /api/chat` → `{ message: "OK" }` (ping untuk route chat)
+- `GET /api/chat` → `{ message: "OK" }` (route ping)
 - `POST /api/chat`
   - Body (JSON):
     ```json
-    { "message": "cari ramen enak di Cimahi yang buka sekarang" }
+    { "message": "find good ramen in Cimahi open now" }
     ```
-  - Response (bentuk umum):
+  - Response (general shape):
     ```json
     {
       "query": "...",
@@ -74,37 +74,37 @@ bun run dev
     }
     ```
 
-### Contoh cURL
+### cURL example
 ```sh
 curl -X POST "http://localhost:3000/api/chat" \
   -H "Content-Type: application/json" \
-  -d '{"message":"cari cafe cozy di Bandung yang buka sekarang"}'
+  -d '{"message":"find a cozy cafe in Bandung open now"}'
 ```
 
-## Alur Kerja (How it works)
+## How it works
 - `src/routes/chat.ts`
-  - `GET /api/chat` untuk ping.
-  - `POST /api/chat` menerima `{ message }`, rate limit sederhana 10 req / 10 detik per IP.
+  - `GET /api/chat` for ping.
+  - `POST /api/chat` accepts `{ message }`, simple in-memory rate limit: 10 req / 10s per IP.
 - `src/services/map.ts`
-  - `processChat(message)`: panggil LLM → bentuk query → panggil Google Places → kembalikan payload.
+  - `processChat(message)`: call LLM → build query → call Google Places → return payload.
 - `src/services/llm.ts`
-  - `extractMapsIntent()`: gunakan model `gpt-4o-mini` (JSON mode) untuk mengekstrak intent: `query`, `location?`, `radius_km?`, `top_k?`, `filters.open_now?`.
+  - `extractMapsIntent()`: uses `gpt-4o-mini` (JSON mode) to extract intent: `query`, `location?`, `radius_km?`, `top_k?`, `filters.open_now?`.
 - `src/services/maps.ts`
-  - `textSearchPlaces(q, openNow, topK)`: coba Legacy Text Search; bila gagal, fallback ke Places API v1 (`places:searchText`). Hasil dipetakan ke struktur yang konsisten dengan URL navigasi dan embed.
+  - `textSearchPlaces(q, openNow, topK)`: first tries Legacy Text Search; if it fails, falls back to Places API v1 (`places:searchText`). Maps to a consistent structure with navigation and embed URLs.
 - `src/config/openai.ts`
-  - Inisialisasi OpenAI Client dengan `OPENAI_API_KEY`.
+  - Initializes OpenAI Client with `OPENAI_API_KEY`.
 - `src/config/middleware.ts`
-  - `prettyJSON()` untuk output JSON yang rapi.
+  - `prettyJSON()` to pretty-print JSON output.
 - `src/constants/endpoints.ts`
-  - Basis route `API.CHAT = "/api/chat"`.
+  - Base route `API.CHAT = "/api/chat"`.
 - `src/index.ts`
-  - Daftarkan route dan middleware, healthcheck, error handler. Ekspor `{ fetch, port }` untuk Bun.
+  - Registers routes and middleware, healthcheck, error handler. Exports `{ fetch, port }` for Bun.
 
 ### Rate Limiting
-- In-memory bucket (sederhana): 10 permintaan / 10 detik per IP.
-- IP dibaca dari header `cf-connecting-ip` atau `x-forwarded-for` (fallback `local`).
+- In-memory bucket (simple): 10 requests / 10 seconds per IP.
+- IP is read from `cf-connecting-ip` or `x-forwarded-for` headers (fallback `local`).
 
-## Struktur Proyek (ringkas)
+## Project Structure (brief)
 ```
 src/
   config/
@@ -121,10 +121,10 @@ src/
   index.ts
 ```
 
-## Catatan
-- CORS belum diaktifkan secara eksplisit. Jika diakses dari browser lintas-origin, tambahkan middleware CORS sesuai kebutuhan Hono.
-- Pastikan Google Cloud project telah mengaktifkan Places API dan API key diizinkan untuk endpoint yang dipakai.
-- Model OpenAI (`gpt-4o-mini`) dapat diganti sesuai kebutuhan/performa/biaya.
+## Notes
+- CORS is not explicitly enabled. If accessing from browsers cross-origin, add CORS middleware as needed for Hono.
+- Ensure your Google Cloud project has Places API enabled and the API key is allowed for the endpoints used.
+- The OpenAI model (`gpt-4o-mini`) can be changed depending on needs/perf/cost.
 
-## Lisensi
-Gunakan sesuai kebutuhan internal Anda. Tambahkan file LICENSE bila diperlukan.
+## License
+Use for internal needs. Add a LICENSE file if needed.
